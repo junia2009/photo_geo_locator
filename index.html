@@ -711,6 +711,12 @@
       hideError();
       clearMapAndLinks();
 
+      // 画像ファイル以外は拒否
+      if (!file.type.startsWith('image/')) {
+        showError('画像ファイル（JPEG/PNG等）を選択してください。');
+        return;
+      }
+
       current = { file, arrayBuffer: null, dataUrl: null, gps: null, reverse: null };
 
       previewWrap.classList.remove('active');
@@ -720,41 +726,52 @@
       const t0 = performance.now();
       await showProcessing();
 
-      // Read ArrayBuffer for EXIF parse
-      const ab = await readAsArrayBuffer(file);
-      current.arrayBuffer = ab;
+      try {
+        // Read ArrayBuffer for EXIF parse
+        const ab = await readAsArrayBuffer(file);
+        current.arrayBuffer = ab;
 
-      // Read DataURL for preview (and optionally for INPUT)
-      const dataUrl = await readAsDataURL(file);
-      current.dataUrl = dataUrl;
+        // Read DataURL for preview (and optionally for INPUT)
+        const dataUrl = await readAsDataURL(file);
+        current.dataUrl = dataUrl;
 
-      // preview
-      previewImg.src = dataUrl;
-      previewMeta.innerHTML = `<b>FILE</b> : ${escapeHtml(file.name)}<br>
-                               <b>TYPE</b> : ${escapeHtml(file.type || 'unknown')}<br>
-                               <b>SIZE</b> : ${file.size.toLocaleString()} bytes`;
+        // preview
+        previewImg.src = dataUrl;
+        previewMeta.innerHTML = `<b>FILE</b> : ${escapeHtml(file.name)}<br>
+                                 <b>TYPE</b> : ${escapeHtml(file.type || 'unknown')}<br>
+                                 <b>SIZE</b> : ${file.size.toLocaleString()} bytes`;
 
-      previewWrap.classList.add('active');
+        previewWrap.classList.add('active');
 
-      // Put DataURL into INPUT only if it is not huge (avoid UI freeze)
-      const MAX_INPUT_CHARS = 200000;
-      if (dataUrl.length <= MAX_INPUT_CHARS) {
-        inputEl.value = dataUrl;
-        inputLenEl.textContent = inputEl.value.length + ' CHARS';
-      } else {
-        inputEl.value = '';
-        inputLenEl.textContent = '0 CHARS';
-        setOutput(
+        // Put DataURL into INPUT only if it is not huge (avoid UI freeze)
+        const MAX_INPUT_CHARS = 200000;
+        if (dataUrl.length <= MAX_INPUT_CHARS) {
+          inputEl.value = dataUrl;
+          inputLenEl.textContent = inputEl.value.length + ' CHARS';
+        } else {
+          inputEl.value = '';
+          inputLenEl.textContent = '0 CHARS';
+          setOutput(
 `[INFO] 画像が大きいため INPUT STREAM への自動貼り付けは抑制しました。
       （内部では読み込み済み：EXIF解析は可能です）
 
 - FILE: ${file.name}
 - SIZE: ${file.size.toLocaleString()} bytes
 - ACTION: LOCATE を押してEXIF(GPS)を抽出してください。`
-        );
-      }
+          );
+        }
 
-      processTimeEl.textContent = 'LOADED IN ' + (performance.now() - t0).toFixed(1) + 'ms';
+        processTimeEl.textContent = 'LOADED IN ' + (performance.now() - t0).toFixed(1) + 'ms';
+      } catch (err) {
+        showError('画像の読み込みに失敗しました。ファイルが壊れているか、対応していない形式の可能性があります。');
+        inputEl.value = '';
+        inputLenEl.textContent = '0 CHARS';
+        previewWrap.classList.remove('active');
+        previewImg.removeAttribute('src');
+        previewMeta.textContent = '';
+        setOutput('');
+        processTimeEl.textContent = '';
+      }
     }
 
     function readAsArrayBuffer(file) {
