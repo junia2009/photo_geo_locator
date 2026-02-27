@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PHOTO GEO LOCATOR</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap');
+    :root {
+      --cyan: #00d4ff;
+      --cyan-dim: rgba(0, 212, 255, 0.3);
+      --cyan-glow: rgba(0, 212, 255, 0.15);
+      --orange: #ff6a00;
+      --orange-dim: rgba(255, 106, 0, 0.3);
+      --blue: #1e90ff;
+      --bg-dark: #0a0e17;
+      --panel-bg: rgba(0, 20, 40, 0.6);
+      --text: #c0dce8;
+      --text-bright: #e8f4f8;
+      --ok: #00ff88;
+      --warn: #ff4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Share Tech Mono', monospace;
+      background: var(--bg-dark);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+    body::-webkit-scrollbar { width: 6px; }
+    body::-webkit-scrollbar-track { background: rgba(0, 10, 20, 0.8); }
+    body::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 3px; }
+    body::-webkit-scrollbar-thumb:hover { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridShift 20s linear infinite;
+    }
+    @keyframes gridShift { 0% { transform: translate(0,0);} 100% { transform: translate(40px,40px);} }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: -100%;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 30px var(--cyan), 0 0 60px var(--cyan-dim);
+      animation: scanLine 4s ease-in-out infinite;
+      z-index: 100;
+      pointer-events: none;
+    }
+    @keyframes scanLine {
+      0% { top: -5%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { top: 105%; opacity: 0; }
+    }
+
+    .particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    .particle {
+      position: absolute;
+      width: 2px; height: 2px;
+      background: var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--cyan);
+      animation: float linear infinite;
+      opacity: 0;
+    }
+    @keyframes float {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      10% { opacity: 0.8; }
+      90% { opacity: 0.8; }
+      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+    }
+
+    .container { position: relative; width: 100%; max-width: 760px; margin: auto; padding: 20px; z-index: 10; }
+    .hud-frame {
+      position: relative;
+      background: var(--panel-bg);
+      border: 1px solid var(--cyan-dim);
+      border-radius: 4px;
+      padding: 36px 32px 28px;
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.05), inset 0 0 30px rgba(0, 212, 255, 0.02);
+    }
+    .hud-frame::before, .hud-frame::after {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      border-color: var(--cyan);
+      border-style: solid;
+    }
+    .hud-frame::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    .hud-frame::after { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+    .corner-bl, .corner-br {
+      position: absolute;
+      width: 20px; height: 20px;
+      border-color: var(--cyan);
+      border-style: solid;
+    }
+    .corner-bl { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+    .corner-br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+    .header { text-align: center; margin-bottom: 24px; position: relative; }
+    .header-line { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 4px; }
+    .header-line .deco { width: 40px; height: 1px; background: linear-gradient(90deg, transparent, var(--cyan)); }
+    .header-line .deco:last-child { background: linear-gradient(90deg, var(--cyan), transparent); }
+    .arc-reactor {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--cyan);
+      display: flex; align-items: center; justify-content: center;
+      animation: reactorPulse 2s ease-in-out infinite;
+      position: relative;
+    }
+    .arc-reactor::before {
+      content: '';
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid var(--cyan);
+      box-shadow: 0 0 12px var(--cyan), inset 0 0 8px var(--cyan-glow);
+    }
+    .arc-reactor::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      border: 1px dashed var(--cyan-dim);
+      animation: reactorSpin 6s linear infinite;
+    }
+    @keyframes reactorPulse {
+      0%,100% { box-shadow: 0 0 15px var(--cyan-dim); }
+      50% { box-shadow: 0 0 30px var(--cyan-dim), 0 0 60px rgba(0, 212, 255, 0.1); }
+    }
+    @keyframes reactorSpin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--cyan);
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 6px;
+      text-shadow: 0 0 20px var(--cyan-dim);
+      text-transform: uppercase;
+    }
+    .subtitle {
+      font-size: 0.7rem;
+      color: var(--cyan-dim);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .status-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+      margin-bottom: 20px;
+      font-size: 0.7rem;
+      color: var(--cyan-dim);
+      letter-spacing: 1px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 8px var(--ok);
+      margin-right: 6px;
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .status-bar .time { color: var(--orange-dim); }
+
+    .file-drop {
+      border: 1px dashed var(--cyan-dim);
+      border-radius: 2px;
+      padding: 14px;
+      text-align: center;
+      color: rgba(0, 212, 255, 0.35);
+      font-size: 0.75rem;
+      margin-bottom: 12px;
+      transition: all 0.3s;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+    }
+    .file-drop::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.6s;
+    }
+    .file-drop:hover::before, .file-drop.dragover::before { transform: translateX(100%); }
+    .file-drop:hover, .file-drop.dragover { border-color: var(--cyan); color: var(--cyan); }
+    .file-drop input { display: none; }
+
+    .preview-wrap {
+      margin: 10px 0 18px;
+      display: none;
+      gap: 12px;
+      align-items: stretch;
+    }
+    .preview-wrap.active { display: flex; }
+    .preview-img {
+      width: 160px;
+      height: 120px;
+      border: 1px solid rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+      background: rgba(0, 10, 20, 0.7);
+      object-fit: cover;
+      box-shadow: inset 0 0 15px rgba(0, 212, 255, 0.03);
+    }
+    .preview-meta {
+      flex: 1;
+      border: 1px solid rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+      background: rgba(0, 10, 20, 0.55);
+      padding: 10px 12px;
+      color: rgba(0, 212, 255, 0.45);
+      font-size: 0.72rem;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+    .preview-meta b { color: var(--cyan); font-weight: 600; }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cyan);
+      margin-bottom: 8px;
+      font-size: 0.75rem;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 500;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    label .bracket { color: var(--orange-dim); font-size: 0.85rem; }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 14px;
+      border: 1px solid rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+      background: rgba(0, 10, 20, 0.7);
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-family: 'Share Tech Mono', monospace;
+      resize: vertical;
+      transition: all 0.3s;
+      line-height: 1.6;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.1), inset 0 0 15px rgba(0, 212, 255, 0.03);
+    }
+    textarea::placeholder { color: rgba(0, 212, 255, 0.35); letter-spacing: 1px; }
+    textarea::-webkit-scrollbar { width: 4px; }
+    textarea::-webkit-scrollbar-track { background: transparent; }
+    textarea::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
+
+    .swap-row {
+      display: flex; justify-content: center; align-items: center;
+      margin: 10px 0;
+      position: relative;
+    }
+    .swap-row::before, .swap-row::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+    }
+    .btn-swap {
+      width: 32px; height: 32px;
+      border: 1px solid var(--cyan-dim);
+      border-radius: 50%;
+      background: rgba(0, 20, 40, 0.8);
+      color: var(--cyan);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 12px;
+    }
+    .btn-swap:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 15px var(--cyan-dim);
+      transform: rotate(180deg);
+    }
+
+    .output-wrapper { position: relative; }
+    .btn-copy {
+      position: absolute;
+      top: 8px; right: 8px;
+      padding: 4px 10px;
+      font-size: 0.65rem;
+      font-family: 'Orbitron', sans-serif;
+      background: rgba(0, 212, 255, 0.05);
+      color: var(--cyan-dim);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .btn-copy:hover {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan-dim);
+    }
+    .btn-copy.copied {
+      border-color: var(--ok);
+      color: var(--ok);
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+    }
+
+    .byte-counter {
+      display: flex; justify-content: space-between;
+      font-size: 0.65rem;
+      color: rgba(0, 212, 255, 0.2);
+      margin-top: 4px;
+      letter-spacing: 1px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-group { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border: 1px solid;
+      border-radius: 2px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+      background: transparent;
+      min-width: 140px;
+    }
+    .btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, currentColor, transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .btn:hover::before { opacity: 0.05; }
+
+    .btn-decode { border-color: var(--cyan-dim); color: var(--cyan); }
+    .btn-decode:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px var(--cyan-dim), inset 0 0 20px rgba(0, 212, 255, 0.05);
+      text-shadow: 0 0 10px var(--cyan);
+    }
+    .btn-encode { border-color: var(--orange-dim); color: var(--orange); }
+    .btn-encode:hover {
+      border-color: var(--orange);
+      box-shadow: 0 0 20px var(--orange-dim), inset 0 0 20px rgba(255, 106, 0, 0.05);
+      text-shadow: 0 0 10px var(--orange);
+    }
+    .btn-clear { flex: 0.4; border-color: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.3); min-width: 120px; }
+    .btn-clear:hover { border-color: rgba(255, 255, 255, 0.3); color: rgba(255, 255, 255, 0.6); }
+
+    .error {
+      background: rgba(255, 50, 50, 0.05);
+      border: 1px solid rgba(255, 50, 50, 0.2);
+      color: var(--warn);
+      padding: 10px 14px;
+      border-radius: 2px;
+      margin-top: 14px;
+      font-size: 0.8rem;
+      display: none;
+      letter-spacing: 1px;
+    }
+    .error::before {
+      content: '⚠ WARNING: ';
+      color: var(--orange);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+    }
+
+    .hud-deco-top {
+      position: absolute;
+      top: 8px; left: 28px; right: 28px;
+      display: flex; justify-content: space-between;
+      font-size: 0.55rem;
+      color: rgba(0, 212, 255, 0.15);
+      letter-spacing: 2px;
+      pointer-events: none;
+    }
+    .hud-deco-bottom { display: flex; justify-content: center; gap: 4px; margin-top: 18px; opacity: 0.3; }
+    .hud-deco-bottom span { width: 3px; height: 3px; background: var(--cyan); display: block; }
+    .hud-deco-bottom span:nth-child(odd) { opacity: 0.4; }
+
+    .processing-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 10, 20, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      border-radius: 4px;
+    }
+    .processing-overlay.active { display: flex; }
+    .processing-ring {
+      width: 50px; height: 50px;
+      border: 2px solid transparent;
+      border-top-color: var(--cyan);
+      border-right-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      position: relative;
+    }
+    .processing-ring::before {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border: 2px solid transparent;
+      border-top-color: var(--orange);
+      border-radius: 50%;
+      animation: spin 1.2s linear infinite reverse;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .links {
+      margin-top: 10px;
+      display: none;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .links.active { display: flex; }
+    .link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid rgba(0, 212, 255, 0.18);
+      border-radius: 2px;
+      text-decoration: none;
+      color: rgba(0, 212, 255, 0.6);
+      font-size: 0.7rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all 0.25s;
+      background: rgba(0, 10, 20, 0.35);
+    }
+    .link-btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(0,212,255,0.18); }
+    .map-frame {
+      margin-top: 10px;
+      width: 100%;
+      height: 260px;
+      border: 1px solid rgba(0, 212, 255, 0.12);
+      border-radius: 2px;
+      overflow: hidden;
+      display: none;
+      background: rgba(0, 10, 20, 0.55);
+    }
+    .map-frame.active { display: block; }
+    .map-frame iframe { width: 100%; height: 100%; border: 0; }
+
+    @media (max-width: 600px) {
+      .hud-frame { padding: 28px 18px 20px; }
+      h1 { font-size: 1.1rem; letter-spacing: 3px; }
+      .btn { font-size: 0.7rem; letter-spacing: 2px; padding: 10px 12px; }
+      .btn-clear { flex: 1; }
+      .preview-wrap.active { flex-direction: column; }
+      .preview-img { width: 100%; height: 180px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="particles" id="particles"></div>
+
+  <div class="container">
+    <div class="hud-frame">
+      <div class="corner-bl"></div>
+      <div class="corner-br"></div>
+
+      <div class="hud-deco-top">
+        <span>SYS.OK</span>
+        <span>Photo Geo Locator</span>
+        <span>v1.0.0</span>
+      </div>
+
+      <div class="processing-overlay" id="processingOverlay">
+        <div class="processing-ring"></div>
+      </div>
+
+      <div class="header">
+        <div class="header-line">
+          <span class="deco"></span>
+          <div class="arc-reactor"></div>
+          <span class="deco"></span>
+        </div>
+        <h1>PHOTO GEO LOCATOR</h1>
+        <div class="subtitle">EXIF Geolocation Interface</div>
+      </div>
+
+      <div class="status-bar">
+        <span><span class="status-dot"></span>SYSTEM ONLINE</span>
+        <span class="time" id="clock">00:00:00</span>
+      </div>
+
+      <div class="file-drop" id="fileDrop">
+        ▸ 写真(JPEG推奨)をドラッグ＆ドロップ / クリックして選択
+        <input type="file" id="fileInput" accept="image/*">
+      </div>
+
+      <div class="preview-wrap" id="previewWrap">
+        <img class="preview-img" id="previewImg" alt="preview">
+        <div class="preview-meta" id="previewMeta"></div>
+      </div>
+
+      <label><span class="bracket">[</span> INPUT STREAM <span class="bracket">]</span></label>
+      <textarea id="input" placeholder="// DataURL(base64) を貼り付ける or ファイル選択してLOCATE..." spellcheck="false"></textarea>
+      <div class="byte-counter">
+        <span id="inputLen">0 CHARS</span>
+        <span>CTRL+ENTER → LOCATE</span>
+      </div>
+
+      <div class="swap-row">
+        <button class="btn-swap" onclick="swapFields()" title="入力と出力を入れ替え">⇅</button>
+      </div>
+
+      <label><span class="bracket">[</span> OUTPUT STREAM <span class="bracket">]</span></label>
+      <div class="output-wrapper">
+        <textarea id="output" readonly placeholder="// 緯度経度 / 住所 / リンク / EXIF解析結果が表示されます..." spellcheck="false"></textarea>
+        <button class="btn-copy" onclick="copyOutput()">COPY</button>
+      </div>
+      <div class="byte-counter">
+        <span id="outputLen">0 CHARS</span>
+        <span id="processTime"></span>
+      </div>
+
+      <div class="links" id="links">
+        <a class="link-btn" id="gmapsLink" target="_blank" rel="noopener">OPEN • GOOGLE MAPS</a>
+        <a class="link-btn" id="osmLink" target="_blank" rel="noopener">OPEN • OSM</a>
+      </div>
+
+      <div class="map-frame" id="mapFrame"></div>
+
+      <div class="error" id="error"></div>
+
+      <div class="btn-group">
+        <button class="btn btn-decode" onclick="locate()">Locate</button>
+        <button class="btn btn-encode" onclick="reverseOnly()">Reverse</button>
+        <button class="btn btn-clear" onclick="clearAll()">Clear</button>
+      </div>
+
+      <div class="hud-deco-bottom">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === UI Elements ===
+    const inputEl = document.getElementById('input');
+    const outputEl = document.getElementById('output');
+    const errorEl = document.getElementById('error');
+    const fileDropEl = document.getElementById('fileDrop');
+    const fileInputEl = document.getElementById('fileInput');
+    const clockEl = document.getElementById('clock');
+    const inputLenEl = document.getElementById('inputLen');
+    const outputLenEl = document.getElementById('outputLen');
+    const processTimeEl = document.getElementById('processTime');
+    const overlay = document.getElementById('processingOverlay');
+
+    const previewWrap = document.getElementById('previewWrap');
+    const previewImg = document.getElementById('previewImg');
+    const previewMeta = document.getElementById('previewMeta');
+
+    const linksEl = document.getElementById('links');
+    const gmapsLink = document.getElementById('gmapsLink');
+    const osmLink = document.getElementById('osmLink');
+    const mapFrame = document.getElementById('mapFrame');
+
+    // Current state
+    let current = {
+      file: null,
+      arrayBuffer: null,
+      dataUrl: null,
+      gps: null,
+      reverse: null
+    };
+
+    // === CLOCK ===
+    function updateClock() {
+      const now = new Date();
+      clockEl.textContent = now.toTimeString().split(' ')[0];
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // === CHAR COUNTERS ===
+    inputEl.addEventListener('input', () => {
+      inputLenEl.textContent = inputEl.value.length + ' CHARS';
+    });
+
+    // === PARTICLES ===
+    (function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDuration = (4 + Math.random() * 8) + 's';
+        p.style.animationDelay = Math.random() * 10 + 's';
+        p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+        container.appendChild(p);
+      }
+    })();
+
+    // === PROCESSING ANIMATION ===
+    function showProcessing(ms = 350) {
+      return new Promise(resolve => {
+        overlay.classList.add('active');
+        setTimeout(() => {
+          overlay.classList.remove('active');
+          resolve();
+        }, ms);
+      });
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+    function hideError() { errorEl.style.display = 'none'; }
+
+    function setOutput(text) {
+      outputEl.value = text;
+      outputLenEl.textContent = text.length + ' CHARS';
+    }
+
+    function setLinks(lat, lon) {
+      const latStr = String(lat);
+      const lonStr = String(lon);
+      gmapsLink.href = `https://www.google.com/maps?q=${encodeURIComponent(latStr)},${encodeURIComponent(lonStr)}`;
+      osmLink.href = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(latStr)}&mlon=${encodeURIComponent(lonStr)}#map=16/${encodeURIComponent(latStr)}/${encodeURIComponent(lonStr)}`;
+      linksEl.classList.add('active');
+    }
+
+    function setMap(lat, lon) {
+      // OpenStreetMap embed with bbox + marker (single marker) [4](https://simonwillison.net/2024/Nov/25/openstreetmap-embed-url/)
+      const delta = 0.01;
+      const minLon = lon - delta, minLat = lat - delta, maxLon = lon + delta, maxLat = lat + delta;
+      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(minLon)},${encodeURIComponent(minLat)},${encodeURIComponent(maxLon)},${encodeURIComponent(maxLat)}&layer=mapnik&marker=${encodeURIComponent(lat)},${encodeURIComponent(lon)}`;
+      mapFrame.innerHTML = `<iframe sandbox="allow-scripts allow-same-origin" src="${src}"></iframe>`;
+      mapFrame.classList.add('active');
+    }
+
+    function clearMapAndLinks() {
+      linksEl.classList.remove('active');
+      mapFrame.classList.remove('active');
+      mapFrame.innerHTML = '';
+    }
+
+    // === FILE DROP ===
+    fileDropEl.addEventListener('click', () => fileInputEl.click());
+    fileDropEl.addEventListener('dragover', (e) => { e.preventDefault(); fileDropEl.classList.add('dragover'); });
+    fileDropEl.addEventListener('dragleave', () => fileDropEl.classList.remove('dragover'));
+    fileDropEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileDropEl.classList.remove('dragover');
+      handleFile(e.dataTransfer.files[0]);
+    });
+    fileInputEl.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    async function handleFile(file) {
+      if (!file) return;
+      hideError();
+      clearMapAndLinks();
+
+      current = { file, arrayBuffer: null, dataUrl: null, gps: null, reverse: null };
+
+      previewWrap.classList.remove('active');
+      previewMeta.textContent = '';
+      previewImg.removeAttribute('src');
+
+      const t0 = performance.now();
+      await showProcessing();
+
+      // Read ArrayBuffer for EXIF parse
+      const ab = await readAsArrayBuffer(file);
+      current.arrayBuffer = ab;
+
+      // Read DataURL for preview (and optionally for INPUT)
+      const dataUrl = await readAsDataURL(file);
+      current.dataUrl = dataUrl;
+
+      // preview
+      previewImg.src = dataUrl;
+      previewMeta.innerHTML = `<b>FILE</b> : ${escapeHtml(file.name)}<br>
+                               <b>TYPE</b> : ${escapeHtml(file.type || 'unknown')}<br>
+                               <b>SIZE</b> : ${file.size.toLocaleString()} bytes`;
+
+      previewWrap.classList.add('active');
+
+      // Put DataURL into INPUT only if it is not huge (avoid UI freeze)
+      const MAX_INPUT_CHARS = 200000;
+      if (dataUrl.length <= MAX_INPUT_CHARS) {
+        inputEl.value = dataUrl;
+        inputLenEl.textContent = inputEl.value.length + ' CHARS';
+      } else {
+        inputEl.value = '';
+        inputLenEl.textContent = '0 CHARS';
+        setOutput(
+`[INFO] 画像が大きいため INPUT STREAM への自動貼り付けは抑制しました。
+      （内部では読み込み済み：EXIF解析は可能です）
+
+- FILE: ${file.name}
+- SIZE: ${file.size.toLocaleString()} bytes
+- ACTION: LOCATE を押してEXIF(GPS)を抽出してください。`
+        );
+      }
+
+      processTimeEl.textContent = 'LOADED IN ' + (performance.now() - t0).toFixed(1) + 'ms';
+    }
+
+    function readAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+        r.readAsArrayBuffer(file);
+      });
+    }
+    function readAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+    }
+
+    // === KEYBOARD SHORTCUT ===
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        locate();
+      }
+    });
+
+    // === MAIN: Locate (EXIF -> GPS -> Reverse -> Map) ===
+    async function locate() {
+      hideError();
+      clearMapAndLinks();
+
+      const t0 = performance.now();
+      await showProcessing();
+
+      try {
+        // Priority: loaded file buffer; otherwise parse from INPUT (dataURL/base64)
+        const buffer = current.arrayBuffer || bufferFromInput(inputEl.value.trim());
+        if (!buffer) {
+          showError('入力が空です。画像ファイルを選択するか、DataURL(base64)を貼り付けてください。');
+          return;
+        }
+
+        const gps = extractExifGPS(buffer);
+        current.gps = gps;
+
+        if (!gps || gps.latitude == null || gps.longitude == null) {
+          setOutput(
+`[RESULT] 位置情報(GPS)が見つかりませんでした。
+
+考えられる理由:
+- 画像にGPS(EXIF)が保存されていない
+- スクリーンショット/加工アプリでEXIFが削除された
+- 対応外形式（JPEG以外など）
+
+TIP:
+- iPhone/Androidのカメラ設定で位置情報ONの写真を試してください。`
+          );
+          processTimeEl.textContent = 'PROCESSED IN ' + (performance.now() - t0).toFixed(1) + 'ms';
+          return;
+        }
+
+        // reverse geocode
+        const rev = await reverseGeocodeBigDataCloud(gps.latitude, gps.longitude, 'ja'); // endpoint: /data/reverse-geocode-client [2](https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api)
+        current.reverse = rev;
+
+        const lines = [];
+        lines.push('[GPS]');
+        lines.push(`- Latitude : ${gps.latitude.toFixed(6)} (${gps.dmsLat})`);
+        lines.push(`- Longitude: ${gps.longitude.toFixed(6)} (${gps.dmsLon})`);
+        if (gps.altitude != null) lines.push(`- Altitude : ${gps.altitude.toFixed(1)} m`);
+        if (gps.timestamp) lines.push(`- GPSTime : ${gps.timestamp}`);
+        lines.push('');
+        lines.push('[REVERSE GEOCODE]');
+        if (rev && !rev._error) {
+          // BigDataCloud returns locality / principalSubdivision / countryName etc. [2](https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api)
+          lines.push(`- Country : ${rev.countryName || '-'}`);
+          lines.push(`- Region  : ${rev.principalSubdivision || '-'}`);
+          lines.push(`- Locality: ${rev.city || rev.locality || '-'}`);
+          lines.push(`- Postcode: ${rev.postcode || '-'}`);
+          lines.push(`- Source  : ${rev.lookupSource || '-'}`);
+        } else {
+          lines.push(`- ERROR   : ${rev && rev._error ? rev._error : 'Reverse geocode failed'}`);
+        }
+        lines.push('');
+        lines.push('[LINKS]');
+        lines.push(`- Google Maps: https://www.google.com/maps?q=${gps.latitude},${gps.longitude}`);
+        lines.push(`- OpenStreetMap: https://www.openstreetmap.org/?mlat=${gps.latitude}&mlon=${gps.longitude}#map=16/${gps.latitude}/${gps.longitude}`);
+
+        setOutput(lines.join('\n'));
+        setLinks(gps.latitude, gps.longitude);
+        setMap(gps.latitude, gps.longitude);
+
+        processTimeEl.textContent = 'PROCESSED IN ' + (performance.now() - t0).toFixed(1) + 'ms';
+      } catch (e) {
+        showError('解析に失敗しました。JPEGの写真（EXIF付き）を試すか、DataURL(base64)の形式を確認してください。');
+      }
+    }
+
+    // Reverse only button (use last GPS)
+    async function reverseOnly() {
+      hideError();
+      const t0 = performance.now();
+      await showProcessing();
+
+      const gps = current.gps;
+      if (!gps || gps.latitude == null || gps.longitude == null) {
+        showError('先にLOCATEでGPSを抽出してください。');
+        return;
+      }
+
+      try {
+        const rev = await reverseGeocodeBigDataCloud(gps.latitude, gps.longitude, 'ja'); [2](https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api)
+        current.reverse = rev;
+        const prev = outputEl.value || '';
+        setOutput(prev + '\n\n[REVERSE ONLY]\n' + JSON.stringify(rev, null, 2));
+        processTimeEl.textContent = 'PROCESSED IN ' + (performance.now() - t0).toFixed(1) + 'ms';
+      } catch (e) {
+        showError('Reverse geocode に失敗しました。ネットワーク/ CORS / API状態を確認してください。');
+      }
+    }
+
+    // === INPUT -> ArrayBuffer ===
+    function bufferFromInput(text) {
+      if (!text) return null;
+      // Accept DataURL: data:image/jpeg;base64,xxxx or plain base64
+      let base64 = text;
+      const comma = text.indexOf(',');
+      if (text.startsWith('data:') && comma >= 0) base64 = text.slice(comma + 1);
+      // Remove whitespace/newlines
+      base64 = base64.replace(/\s+/g, '');
+      try {
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes.buffer;
+      } catch {
+        return null;
+      }
+    }
+
+    // === EXIF GPS PARSER (minimal, JPEG APP1 Exif only) ===
+    function extractExifGPS(arrayBuffer) {
+      const view = new DataView(arrayBuffer);
+      if (view.byteLength < 4) return null;
+
+      // JPEG SOI 0xFFD8
+      if (view.getUint16(0, false) !== 0xFFD8) {
+        // Non-JPEG: not supported in this minimal parser
+        return null;
+      }
+
+      let offset = 2;
+      while (offset + 4 < view.byteLength) {
+        if (view.getUint8(offset) !== 0xFF) break;
+        const marker = view.getUint8(offset + 1);
+
+        // Start of Scan => stop
+        if (marker === 0xDA) break;
+
+        const size = view.getUint16(offset + 2, false);
+        if (size < 2) break;
+
+        // APP1 = 0xE1
+        if (marker === 0xE1) {
+          const exifHeader = readAscii(view, offset + 4, 6);
+          if (exifHeader === 'Exif\u0000\u0000') {
+            const tiffStart = offset + 10;
+            return parseTiffForGPS(view, tiffStart);
+          }
+        }
+        offset += 2 + size;
+      }
+      return null;
+    }
+
+    function parseTiffForGPS(view, tiffStart) {
+      // Endianness "II" or "MM"
+      const endian = readAscii(view, tiffStart, 2);
+      const little = endian === 'II';
+      if (!little && endian !== 'MM') return null;
+
+      const getU16 = (o) => view.getUint16(o, little);
+      const getU32 = (o) => view.getUint32(o, little);
+
+      // TIFF magic 42
+      if (getU16(tiffStart + 2) !== 42) return null;
+
+      const ifd0Offset = getU32(tiffStart + 4);
+      let ifd0 = tiffStart + ifd0Offset;
+      if (ifd0 <= 0 || ifd0 + 2 > view.byteLength) return null;
+
+      const ifd0Count = getU16(ifd0);
+      let gpsIfdPtr = null;
+
+      for (let i = 0; i < ifd0Count; i++) {
+        const entry = ifd0 + 2 + i * 12;
+        const tag = getU16(entry);
+        const type = getU16(entry + 2);
+        const count = getU32(entry + 4);
+        const valueOffset = entry + 8;
+
+        // GPS IFD Pointer tag = 0x8825
+        if (tag === 0x8825) {
+          const off = getU32(valueOffset);
+          gpsIfdPtr = tiffStart + off;
+          break;
+        }
+      }
+
+      if (!gpsIfdPtr) return null;
+      const gpsCount = getU16(gpsIfdPtr);
+      const gps = {};
+
+      for (let i = 0; i < gpsCount; i++) {
+        const entry = gpsIfdPtr + 2 + i * 12;
+        const tag = getU16(entry);
+        const type = getU16(entry + 2);
+        const count = getU32(entry + 4);
+        const valueOrOffset = getU32(entry + 8);
+
+        const value = readTiffValue(view, tiffStart, entry, little);
+
+        // GPS tags
+        if (tag === 0x0001) gps.GPSLatitudeRef = value;       // ASCII
+        if (tag === 0x0002) gps.GPSLatitude = value;          // RATIONAL[3]
+        if (tag === 0x0003) gps.GPSLongitudeRef = value;      // ASCII
+        if (tag === 0x0004) gps.GPSLongitude = value;         // RATIONAL[3]
+        if (tag === 0x0005) gps.GPSAltitudeRef = value;       // BYTE
+        if (tag === 0x0006) gps.GPSAltitude = value;          // RATIONAL
+        if (tag === 0x0007) gps.GPSTimeStamp = value;         // RATIONAL[3]
+        if (tag === 0x001D) gps.GPSDateStamp = value;         // ASCII
+      }
+
+      if (!gps.GPSLatitude || !gps.GPSLongitude) return null;
+
+      // Convert DMS -> DD [3](https://stackoverflow.com/questions/36839168/extract-gps-data-from-exif-data-in-javascript)
+      const lat = dmsToDd(gps.GPSLatitude, gps.GPSLatitudeRef || 'N');
+      const lon = dmsToDd(gps.GPSLongitude, gps.GPSLongitudeRef || 'E');
+
+      const dmsLat = formatDms(gps.GPSLatitude, gps.GPSLatitudeRef || 'N');
+      const dmsLon = formatDms(gps.GPSLongitude, gps.GPSLongitudeRef || 'E');
+
+      let altitude = null;
+      if (gps.GPSAltitude != null) {
+        altitude = gps.GPSAltitude;
+        if (gps.GPSAltitudeRef === 1) altitude = -altitude;
+      }
+
+      let timestamp = null;
+      if (gps.GPSTimeStamp && gps.GPSDateStamp) {
+        const [h, m, s] = gps.GPSTimeStamp;
+        timestamp = `${gps.GPSDateStamp} ${pad2(h)}:${pad2(m)}:${pad2(Math.floor(s))}Z`;
+      }
+
+      return {
+        latitude: lat,
+        longitude: lon,
+        dmsLat,
+        dmsLon,
+        altitude,
+        timestamp
+      };
+    }
+
+    function readTiffValue(view, tiffStart, entryOffset, little) {
+      const getU16 = (o) => view.getUint16(o, little);
+      const getU32 = (o) => view.getUint32(o, little);
+
+      const type = getU16(entryOffset + 2);
+      const count = getU32(entryOffset + 4);
+      const valueOffsetField = entryOffset + 8;
+
+      const typeSize = ({
+        1: 1, // BYTE
+        2: 1, // ASCII
+        3: 2, // SHORT
+        4: 4, // LONG
+        5: 8  // RATIONAL
+      })[type] || 0;
+
+      const dataSize = typeSize * count;
+
+      let dataOffset;
+      if (dataSize <= 4) {
+        dataOffset = valueOffsetField;
+      } else {
+        const off = getU32(valueOffsetField);
+        dataOffset = tiffStart + off;
+      }
+      if (dataOffset < 0 || dataOffset >= view.byteLength) return null;
+
+      // Parse by type
+      if (type === 2) { // ASCII
+        return readAscii(view, dataOffset, count).replace(/\u0000+$/, '');
+      }
+      if (type === 1) { // BYTE
+        if (count === 1) return view.getUint8(dataOffset);
+        const arr = [];
+        for (let i = 0; i < count; i++) arr.push(view.getUint8(dataOffset + i));
+        return arr;
+      }
+      if (type === 3) { // SHORT
+        if (count === 1) return view.getUint16(dataOffset, little);
+        const arr = [];
+        for (let i = 0; i < count; i++) arr.push(view.getUint16(dataOffset + i * 2, little));
+        return arr;
+      }
+      if (type === 4) { // LONG
+        if (count === 1) return view.getUint32(dataOffset, little);
+        const arr = [];
+        for (let i = 0; i < count; i++) arr.push(view.getUint32(dataOffset + i * 4, little));
+        return arr;
+      }
+      if (type === 5) { // RATIONAL
+        const readRat = (o) => {
+          const num = view.getUint32(o, little);
+          const den = view.getUint32(o + 4, little);
+          return den ? (num / den) : null;
+        };
+        if (count === 1) return readRat(dataOffset);
+        const arr = [];
+        for (let i = 0; i < count; i++) arr.push(readRat(dataOffset + i * 8));
+        return arr;
+      }
+      return null;
+    }
+
+    function dmsToDd(dmsArr, ref) {
+      const deg = dmsArr[0] || 0;
+      const min = dmsArr[1] || 0;
+      const sec = dmsArr[2] || 0;
+      let dd = deg + (min / 60) + (sec / 3600);
+      if (ref === 'S' || ref === 'W') dd = -dd; // [3](https://stackoverflow.com/questions/36839168/extract-gps-data-from-exif-data-in-javascript)
+      return dd;
+    }
+
+    function formatDms(dmsArr, ref) {
+      const deg = (dmsArr[0] ?? 0);
+      const min = (dmsArr[1] ?? 0);
+      const sec = (dmsArr[2] ?? 0);
+      return `${deg}°${min}'${Number(sec).toFixed(2)}"${ref}`;
+    }
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function readAscii(view, start, length) {
+      let s = '';
+      for (let i = 0; i < length; i++) {
+        const c = view.getUint8(start + i);
+        s += String.fromCharCode(c);
+      }
+      return s;
+    }
+
+    // === Reverse Geocoding (BigDataCloud free client-side endpoint) ===
+    async function reverseGeocodeBigDataCloud(lat, lon, lang = 'ja') {
+      // API: GET /data/reverse-geocode-client, localityLanguage supported [2](https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api)
+      const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&localityLanguage=${encodeURIComponent(lang)}`;
+      try {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (e) {
+        return { _error: String(e) };
+      }
+    }
+
+    // === Utility ===
+    function clearAll() {
+      inputEl.value = '';
+      outputEl.value = '';
+      inputLenEl.textContent = '0 CHARS';
+      outputLenEl.textContent = '0 CHARS';
+      processTimeEl.textContent = '';
+      hideError();
+      clearMapAndLinks();
+
+      previewWrap.classList.remove('active');
+      previewImg.removeAttribute('src');
+      previewMeta.textContent = '';
+
+      current = { file: null, arrayBuffer: null, dataUrl: null, gps: null, reverse: null };
+    }
+
+    function swapFields() {
+      const temp = inputEl.value;
+      inputEl.value = outputEl.value;
+      outputEl.value = temp;
+      inputLenEl.textContent = inputEl.value.length + ' CHARS';
+      outputLenEl.textContent = outputEl.value.length + ' CHARS';
+      hideError();
+    }
+
+    function copyOutput() {
+      const text = outputEl.value;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.btn-copy');
+        btn.textContent = 'COPIED ✓';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'COPY';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[s]);
+    }
+
+    // === TYPEWRITER TITLE EFFECT ===
+    (function typewriterBoot() {
+      const sub = document.querySelector('.subtitle');
+      const text = sub.textContent.trim();
+      sub.textContent = '';
+      let i = 0;
+      const interval = setInterval(() => {
+        sub.textContent += text[i];
+        i++;
+        if (i >= text.length) clearInterval(interval);
+      }, 40);
+    })();
+  </script>
+</body>
+</html>
