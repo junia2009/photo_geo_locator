@@ -702,21 +702,13 @@
       gmapsLink.href = `https://www.google.com/maps?q=${encodeURIComponent(latStr)},${encodeURIComponent(lonStr)}`;
       osmLink.href = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(latStr)}&mlon=${encodeURIComponent(lonStr)}#map=16/${encodeURIComponent(latStr)}/${encodeURIComponent(lonStr)}`;
       linksEl.classList.add('active');
+      updateGmapsDirectLink(lat, lon);
     }
-
-    function setMap(lat, lon) {
-      // OpenStreetMap embed with bbox + marker (single marker) [4](https://simonwillison.net/2024/Nov/25/openstreetmap-embed-url/)
-      const delta = 0.01;
-      const minLon = lon - delta, minLat = lat - delta, maxLon = lon + delta, maxLat = lat + delta;
-      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(minLon)},${encodeURIComponent(minLat)},${encodeURIComponent(maxLon)},${encodeURIComponent(maxLat)}&layer=mapnik&marker=${encodeURIComponent(lat)},${encodeURIComponent(lon)}`;
-      mapFrame.innerHTML = `<iframe sandbox="allow-scripts allow-same-origin" src="${src}"></iframe>`;
-      mapFrame.classList.add('active');
-    }
-
     function clearMapAndLinks() {
       linksEl.classList.remove('active');
       mapFrame.classList.remove('active');
       mapFrame.innerHTML = '';
+      updateGmapsDirectLink(null, null);
     }
 
     // === FILE DROP ===
@@ -746,7 +738,7 @@
       // 画像ファイル以外は拒否
       if (!file.type.startsWith('image/')) {
         showError('画像ファイル（JPEG/PNG等）を選択してください。');
-        document.getElementById('imgSearchBtnWrap').style.display = 'none';
+        updateGmapsDirectLink(null, null);
         return;
       }
 
@@ -755,7 +747,7 @@
       previewWrap.classList.remove('active');
       previewMeta.textContent = '';
       previewImg.removeAttribute('src');
-      document.getElementById('imgSearchBtnWrap').style.display = 'none';
+      updateGmapsDirectLink(null, null);
 
       const t0 = performance.now();
       await showProcessing();
@@ -778,7 +770,8 @@
         previewWrap.classList.add('active');
 
         // Bing画像検索ボタン表示
-        document.getElementById('imgSearchBtnWrap').style.display = 'block';
+        // document.getElementById('imgSearchBtnWrap').style.display = 'block';
+        updateGmapsDirectLink(null, null);
 
         // Put DataURL into INPUT only if it is not huge (avoid UI freeze)
         const MAX_INPUT_CHARS = 200000;
@@ -808,7 +801,8 @@
         previewMeta.textContent = '';
         setOutput('');
         processTimeEl.textContent = '';
-        document.getElementById('imgSearchBtnWrap').style.display = 'none';
+        // document.getElementById('imgSearchBtnWrap').style.display = 'none';
+        updateGmapsDirectLink(null, null);
       }
     }
 
