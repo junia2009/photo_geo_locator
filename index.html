@@ -530,10 +530,10 @@
         <span class="time" id="clock">00:00:00</span>
       </div>
 
-      <div class="file-drop" id="fileDrop">
+      <label class="file-drop" id="fileDrop" for="fileInput">
         ▸ 写真(JPEG推奨)をドラッグ＆ドロップ / クリックして選択
         <input type="file" id="fileInput" accept="image/*">
-      </div>
+      </label>
 
       <div class="preview-wrap" id="previewWrap">
         <img class="preview-img" id="previewImg" alt="preview">
@@ -688,13 +688,19 @@
     }
 
     // === FILE DROP ===
-    fileDropEl.addEventListener('click', () => fileInputEl.click());
+    // body/windowにもpreventDefaultで安定化
+    ['dragover', 'drop'].forEach(eventName => {
+      window.addEventListener(eventName, e => e.preventDefault(), false);
+      document.body.addEventListener(eventName, e => e.preventDefault(), false);
+    });
     fileDropEl.addEventListener('dragover', (e) => { e.preventDefault(); fileDropEl.classList.add('dragover'); });
     fileDropEl.addEventListener('dragleave', () => fileDropEl.classList.remove('dragover'));
     fileDropEl.addEventListener('drop', (e) => {
       e.preventDefault();
       fileDropEl.classList.remove('dragover');
-      handleFile(e.dataTransfer.files[0]);
+      if (e.dataTransfer && e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
     });
     fileInputEl.addEventListener('change', (e) => {
       if (e.target.files.length) handleFile(e.target.files[0]);
