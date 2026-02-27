@@ -637,6 +637,36 @@
     const gmapsLink = document.getElementById('gmapsLink');
     const osmLink = document.getElementById('osmLink');
     const mapFrame = document.getElementById('mapFrame');
+    // === Google Maps Direct Button ===
+    const gmapsDirectLinkEl = document.getElementById('gmapsDirectLink');
+    const gmapsBtnWrapEl = document.getElementById('gmapsBtnWrap');
+
+  function updateGmapsDirectLink(lat, lon) {
+    // ボタン自体が存在しない場合でも落ちないように
+    if (!gmapsDirectLinkEl) return;
+
+    const hasCoord = (typeof lat === 'number' && isFinite(lat)) && (typeof lon === 'number' && isFinite(lon));
+    if (gmapsBtnWrapEl) {gmapsBtnWrapEl.style.display = hasCoord ? 'block' : 'none';}
+
+
+    if (!hasCoord) {
+      // 座標が無いとき：無効化表示（見た目だけ）
+      gmapsDirectLinkEl.href = 'javascript:void(0)';
+      gmapsDirectLinkEl.setAttribute('aria-disabled', 'true');
+      gmapsDirectLinkEl.style.opacity = '0.35';
+      gmapsDirectLinkEl.style.pointerEvents = 'none';
+      gmapsDirectLinkEl.title = '位置情報が未取得です';
+      return;
+    }
+
+    const latStr = String(lat);
+    const lonStr = String(lon);
+    gmapsDirectLinkEl.href = `https://www.google.com/maps?q=${encodeURIComponent(latStr)},${encodeURIComponent(lonStr)}`;
+    gmapsDirectLinkEl.removeAttribute('aria-disabled');
+    gmapsDirectLinkEl.style.opacity = '1';
+    gmapsDirectLinkEl.style.pointerEvents = 'auto';
+    gmapsDirectLinkEl.title = 'Googleマップで開く';
+  }
 
     // Current state
     let current = {
@@ -1213,8 +1243,12 @@ TIP:
     }
 
     function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, s => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      return String(str).replace(/[&<>"']/g, (s) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
       })[s]);
     }
 
