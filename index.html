@@ -884,7 +884,7 @@ TIP:
       }
 
       try {
-        const rev = await reverseGeocodeBigDataCloud(gps.latitude, gps.longitude, 'ja'); [2](https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api)
+        const rev = await reverseGeocodeBigDataCloud(gps.latitude, gps.longitude, 'ja');
         current.reverse = rev;
         const prev = outputEl.value || '';
         setOutput(prev + '\n\n[REVERSE ONLY]\n' + JSON.stringify(rev, null, 2));
