@@ -929,6 +929,11 @@ TIP:
 
         processTimeEl.textContent = 'PROCESSED IN ' + (performance.now() - t0).toFixed(1) + 'ms';
       } catch (e) {
+        // GPS情報が取得できている場合は警告を表示しない
+        if (current.gps && current.gps.latitude != null && current.gps.longitude != null) {
+          // 何もしない（警告非表示）
+          return;
+        }
         showError('解析に失敗しました。JPEGの写真（EXIF付き）を試すか、DataURL(base64)の形式を確認してください。');
       }
     }
